@@ -46,21 +46,21 @@ if (process.env.NODE_ENV !== 'test') {
     app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
 }
 
-// Helmet для безопасности
+// Helmet для безопасности (упрощенная версия)
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https:"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https:", "blob:"],
-            imgSrc: ["'self'", "data:", "https:", "blob:"],
-            connectSrc: ["'self'", "wss:", "ws:", "https:"],
-            fontSrc: ["'self'", "https:"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
+            imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'", "wss:", "ws:", "*.emqxcloud.com"],
             objectSrc: ["'none'"],
-            mediaSrc: ["'self'"],
             frameSrc: ["'none'"],
         },
     },
+    crossOriginOpenerPolicy: false,
+    originAgentCluster: false,
     crossOriginEmbedderPolicy: false
 }));
 
