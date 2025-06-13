@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Farm Monitor Pro - Smart Map</title>
     
+    <!-- MQTT.js библиотека -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -585,10 +588,12 @@
                 </div>
 
                 <div class="server-info">
-                    <h4>📡 Сервер мониторинга</h4>
-                    <p>Сервер: Локальный режим</p>
-                    <p>Статус: ✅ Активен</p>
-                    <button class="connect-btn">Обновить данные</button>
+                    <h4>📡 EMQX Cloud MQTT</h4>
+                    <p>Сервер: <span id="mqtt-server">o0acf6a7.ala.dedicated.gcp.emqxcloud.com</span></p>
+                    <p>Статус: <span id="mqtt-status">🔴 Отключен</span></p>
+                    <input type="password" id="mqtt-password" placeholder="Пароль MQTT" style="width:100%; margin:5px 0; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                    <button class="connect-btn" id="mqtt-connect-btn">Подключиться к MQTT</button>
+                    <button class="connect-btn" id="mqtt-test-btn" style="background:#28a745; margin-top:5px;" disabled>Отправить тест</button>
                 </div>
             </div>
 
@@ -735,10 +740,18 @@
     <!-- Контейнер для уведомлений -->
     <div id="toast-container"></div>
 
+    <script src="js/mqtt-client.js"></script>
     <script>
-        // Простой JS без внешних зависимостей
+        // Farm Monitor Pro с MQTT интеграцией
+        let mqttClient = null;
+        let vehicleData = new Map();
+        
         document.addEventListener('DOMContentLoaded', function() {
             console.log("🚀 Farm Monitor Pro запущен");
+            
+            // Инициализация MQTT клиента
+            mqttClient = new FarmMQTTClient();
+            setupMQTTHandlers();
             
             // Инициализация времени
             updateTime();
@@ -756,10 +769,21 @@
                 });
             });
             
-            // Обработка кнопок
-            document.querySelector('.connect-btn')?.addEventListener('click', function() {
-                showToast('Данные обновлены', 'success');
-                updateTime();
+            // Обработка MQTT кнопок
+            document.getElementById('mqtt-connect-btn')?.addEventListener('click', function() {
+                const password = document.getElementById('mqtt-password').value;
+                if (!password) {
+                    showToast('Введите пароль MQTT', 'error');
+                    return;
+                }
+                connectToMQTT(password);
+            });
+            
+            document.getElementById('mqtt-test-btn')?.addEventListener('click', function() {
+                if (mqttClient && mqttClient.isConnected) {
+                    mqttClient.sendTestData('tractor-001');
+                    showToast('Тестовые данные отправлены', 'success');
+                }
             });
             
             document.querySelector('.refresh-btn')?.addEventListener('click', function() {
@@ -818,6 +842,62 @@
             setTimeout(() => {
                 toast.remove();
             }, duration);
+        }
+        
+        // MQTT функции
+        function setupMQTTHandlers() {
+            mqttClient.on('connect', () => {
+                document.getElementById('mqtt-status').innerHTML = '🟢 Подключен';
+                document.getElementById('mqtt-connect-btn').textContent = 'Отключиться';
+                document.getElementById('mqtt-test-btn').disabled = false;
+                showToast('Подключен к EMQX Cloud MQTT', 'success');
+            });
+            
+            mqttClient.on('disconnect', () => {
+                document.getElementById('mqtt-status').innerHTML = '🔴 Отключен';
+                document.getElementById('mqtt-connect-btn').textContent = 'Подключиться к MQTT';
+                document.getElementById('mqtt-test-btn').disabled = true;
+                showToast('Отключен от MQTT', 'info');
+            });
+            
+            mqttClient.on('message', (topic, data) => {
+                updateVehicleData(data);
+                showToast(`Получены данные от ${data.device_id}`, 'info');
+            });
+            
+            mqttClient.on('error', (error) => {
+                showToast('Ошибка MQTT: ' + error.message, 'error');
+            });
+        }
+        
+        function connectToMQTT(password) {
+            if (mqttClient.isConnected) {
+                mqttClient.disconnect();
+            } else {
+                mqttClient.connect(password);
+            }
+        }
+        
+        function updateVehicleData(data) {
+            if (!data.device_id) return;
+            
+            vehicleData.set(data.device_id, data);
+            
+            // Обновляем интерфейс
+            updateVehicleUI(data);
+            
+            console.log('📊 Обновлены данные устройства:', data);
+        }
+        
+        function updateVehicleUI(data) {
+            // Обновляем время в модулях
+            const timeElements = document.querySelectorAll('#time1, #time2, #time3');
+            timeElements.forEach(el => {
+                if (el) el.textContent = new Date().toLocaleTimeString('ru-RU');
+            });
+            
+            // Здесь можно добавить обновление конкретных модулей по device_id
+            // и обновление маркеров на карте
         }
     </script>
 </body>
