@@ -750,7 +750,7 @@
                 this.isConnected = false;
                 this.config = {
                     host: 'o0acf6a7.ala.dedicated.gcp.emqxcloud.com',
-                    port: 8083, // WebSocket port
+                    port: 8083, // WebSocket port (без TLS)
                     clientId: 'iforza_' + Math.random().toString(16).substr(2, 8),
                     username: 'iforza',
                     password: '', // Установите ваш пароль
@@ -786,9 +786,10 @@
                         connectTimeout: this.config.connectTimeout,
                         keepalive: this.config.keepalive,
                         clean: this.config.clean,
-                        protocol: 'ws',
+                        protocol: 'ws', // Принудительно WebSocket без TLS
                         protocolId: 'MQTT',
-                        protocolVersion: 4
+                        protocolVersion: 4,
+                        rejectUnauthorized: false // Игнорировать SSL сертификаты
                     };
 
                     const brokerUrl = `ws://${this.config.host}:${this.config.port}/mqtt`;
