@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Farm Monitor Pro - Smart Map</title>
     
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    
     <style>
         * {
             margin: 0;
@@ -193,17 +191,6 @@
             overflow: hidden;
         }
 
-        /* Esri карта */
-        #esriMapDiv {
-            width: 100%;
-            height: 100%;
-            display: none;
-        }
-
-        #esriMapDiv.active {
-            display: block;
-        }
-
         /* Демо карта */
         .demo-map {
             width: 100%;
@@ -216,11 +203,6 @@
             background-size: 50px 50px;
             border: 3px solid #22c55e;
             border-radius: 12px;
-            display: none;
-        }
-
-        .demo-map.active {
-            display: block;
         }
 
         .coordinates-info {
@@ -336,23 +318,6 @@
             font-size: 12px;
             font-weight: bold;
             z-index: 1000;
-        }
-
-        .loading-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            z-index: 1000;
-            display: none;
-        }
-
-        .loading-indicator.show {
-            display: block;
         }
 
         /* Страница 2 - Графики */
@@ -513,33 +478,7 @@
             background: #cbd5e0;
         }
 
-        /* Адаптивность */
-        @media (max-width: 768px) {
-            .content {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                height: 200px;
-            }
-            
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .mqtt-status.error {
-            background-color: #fed7d7;
-            color: #c53030;
-            border-left-color: #e53e3e;
-        }
-
-        .settings-button.danger:hover {
-            background-color: #c53030;
-        }
-
-        /* Стили для Toast уведомлений */
+        /* Toast уведомления */
         #toast-container {
             position: fixed;
             top: 20px;
@@ -572,86 +511,32 @@
         .toast.error { background: linear-gradient(135deg, #dc3545, #c82333); }
         .toast.info { background: linear-gradient(135deg, #17a2b8, #138496); }
 
-        /* Стили для модального окна подтверждения */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.6);
-            z-index: 9998;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 200px;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
         }
-
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-        }
-
-        .modal-overlay.active .modal-content {
-            transform: scale(1);
-        }
-
-        .modal-content h3 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .modal-buttons {
-            margin-top: 25px;
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-
-        .modal-button {
-            padding: 10px 25px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background-color 0.2s;
-        }
-
-        .modal-button-confirm {
-            background-color: #dc3545;
-            color: white;
-        }
-        .modal-button-confirm:hover { background-color: #c82333; }
-
-        .modal-button-cancel {
-            background-color: #e9ecef;
-            color: #333;
-        }
-        .modal-button-cancel:hover { background-color: #d3d9df; }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="logo">Farm Monitor Pro</div>
         <div class="tabs">
-            <button class="tab active" onclick="showPage('map')">Карта</button>
-            <button class="tab" onclick="showPage('analytics')">Графики</button>
-            <button class="tab" onclick="showPage('settings')">Настройки</button>
+            <button class="tab active" data-page="map">Карта</button>
+            <button class="tab" data-page="analytics">Графики</button>
+            <button class="tab" data-page="settings">Настройки</button>
         </div>
-        <div class="status" id="connectionStatus">Проверка соединения...</div>
+        <div class="status online" id="connectionStatus">Система готова</div>
     </div>
 
     <div class="content">
@@ -667,7 +552,7 @@
                         <span class="module-status">В сети</span>
                     </div>
                     <div class="module-info">
-                        Последнее обновление: 14:30:25<br>
+                        Последнее обновление: <span id="time1">--:--:--</span><br>
                         Скорость: 25 км/ч<br>
                         Топливо: 75%
                     </div>
@@ -680,7 +565,7 @@
                         <span class="module-status">Офлайн</span>
                     </div>
                     <div class="module-info">
-                        Последнее обновление: 12:15:10<br>
+                        Последнее обновление: <span id="time2">--:--:--</span><br>
                         Скорость: 0 км/ч<br>
                         Топливо: 60%
                     </div>
@@ -693,55 +578,46 @@
                         <span class="module-status">В сети</span>
                     </div>
                     <div class="module-info">
-                        Последнее обновление: 14:29:45<br>
+                        Последнее обновление: <span id="time3">--:--:--</span><br>
                         Скорость: 15 км/ч<br>
                         Топливо: 40%
                     </div>
                 </div>
 
                 <div class="server-info">
-                    <h4>📡 Сервер MQTT</h4>
-                    <p>Сервер: Автономный режим</p>
-                    <p>Статус: ✅ Подключен</p>
-                    <button class="connect-btn" onclick="connectMQTT()">Подключиться</button>
+                    <h4>📡 Сервер мониторинга</h4>
+                    <p>Сервер: Локальный режим</p>
+                    <p>Статус: ✅ Активен</p>
+                    <button class="connect-btn">Обновить данные</button>
                 </div>
             </div>
 
             <div class="map-container">
-                <div class="loading-indicator" id="loadingIndicator">
-                    <div>🌍 Загрузка карты...</div>
-                    <div style="margin-top: 10px; font-size: 12px;">Проверка интернет соединения</div>
-                </div>
+                <div class="map-mode-indicator">🗺️ Интерактивная карта</div>
                 
-                <div class="map-mode-indicator" id="mapModeIndicator">Инициализация...</div>
-                
-                <!-- Esri карта -->
-                <div id="esriMapDiv"></div>
-                
-                <!-- Демо карта -->
-                <div class="demo-map" id="demoMap">
+                <div class="demo-map">
                     <div class="coordinates-info">
                         🌍 <strong>Координаты:</strong> 55.7558°N, 37.6176°E<br>
-                        📍 <strong>Локация:</strong> Москва, Россия
+                        📍 <strong>Локация:</strong> Московская область
                     </div>
                     
                     <div class="map-title">
                         Карта сельхозтехники
-                        <div class="map-subtitle">Автономная версия - демо-режим</div>
+                        <div class="map-subtitle">Система мониторинга Farm Monitor Pro</div>
                     </div>
                     
                     <!-- Маркеры техники -->
-                    <div class="vehicle-marker" style="top: 40%; left: 45%;" onclick="showVehicleInfo('Трактор-001', 25, 75, 68)">
+                    <div class="vehicle-marker" style="top: 40%; left: 45%;">
                         🚜
                         <div class="vehicle-label">Трактор-001</div>
                     </div>
                     
-                    <div class="vehicle-marker" style="top: 60%; left: 65%;" onclick="showVehicleInfo('Комбайн-002', 0, 60, 45)">
+                    <div class="vehicle-marker" style="top: 60%; left: 65%;">
                         🚜
                         <div class="vehicle-label">Комбайн-002</div>
                     </div>
                     
-                    <div class="vehicle-marker" style="top: 30%; right: 25%;" onclick="showVehicleInfo('Опрыскиватель-003', 15, 40, 52)">
+                    <div class="vehicle-marker" style="top: 30%; right: 25%;">
                         🚁
                         <div class="vehicle-label">Опрыскиватель-003</div>
                     </div>
@@ -778,7 +654,7 @@
                             <option value="24h">24 часа</option>
                             <option value="7d">7 дней</option>
                         </select>
-                        <button class="refresh-btn" onclick="refreshCharts()">🔄 Обновить</button>
+                        <button class="refresh-btn">🔄 Обновить</button>
                     </div>
                 </div>
 
@@ -830,33 +706,10 @@
         <div id="settingsPage" class="page">
             <div class="settings-page">
                 <div class="settings-section">
-                    <h3>📡 Настройки MQTT сервера</h3>
-                    <div id="mqttStatus" class="mqtt-status disconnected">Отключено</div>
+                    <h3>⚙️ Настройки системы</h3>
                     <div class="form-group">
-                        <label for="mqttServer">Сервер MQTT:</label>
-                        <input type="text" id="mqttServer" value="broker.emqx.io" placeholder="broker.emqx.io">
-                    </div>
-                    <div class="form-group">
-                        <label for="mqttPort">Порт:</label>
-                        <input type="number" id="mqttPort" value="8083" placeholder="8083">
-                    </div>
-                    <div class="form-group">
-                        <label for="mqttTopic">Топик:</label>
-                        <input type="text" id="mqttTopic" value="farm/+/data" placeholder="farm/+/data">
-                    </div>
-                    <button class="btn btn-primary" onclick="saveMqttSettings()">Сохранить настройки</button>
-                    <button class="btn btn-secondary" onclick="testConnection()">Тест соединения</button>
-                </div>
-
-                <div class="settings-section">
-                    <h3>👤 Профиль пользователя</h3>
-                    <div class="form-group">
-                        <label for="userName">Имя пользователя:</label>
-                        <input type="text" id="userName" value="Администратор" placeholder="Введите имя">
-                    </div>
-                    <div class="form-group">
-                        <label for="userEmail">Email:</label>
-                        <input type="email" id="userEmail" value="admin@farm.ru" placeholder="email@example.com">
+                        <label for="updateInterval">Интервал обновления (сек):</label>
+                        <input type="number" id="updateInterval" value="5" min="1" max="60">
                     </div>
                     <div class="form-group">
                         <label for="language">Язык интерфейса:</label>
@@ -865,23 +718,15 @@
                             <option value="en">English</option>
                         </select>
                     </div>
-                    <button class="btn btn-primary" onclick="saveProfile()">Сохранить профиль</button>
+                    <button class="btn btn-primary">Сохранить настройки</button>
                 </div>
 
                 <div class="settings-section">
-                    <h3>💾 Управление данными</h3>
-                    <p>Экспорт данных за выбранный период для анализа и отчетности.</p>
-                    <div class="form-group">
-                        <label for="exportPeriod">Период экспорта:</label>
-                        <select id="exportPeriod">
-                            <option value="today">Сегодня</option>
-                            <option value="week">Неделя</option>
-                            <option value="month">Месяц</option>
-                            <option value="all">Все данные</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary" onclick="exportData()">📥 Экспорт в CSV</button>
-                    <button class="btn btn-secondary" onclick="clearData()">🗑️ Очистить данные</button>
+                    <h3>👤 Информация о системе</h3>
+                    <p><strong>Версия:</strong> Farm Monitor Pro v1.0.0</p>
+                    <p><strong>Статус:</strong> ✅ Система работает нормально</p>
+                    <p><strong>Время работы:</strong> <span id="uptime">00:00:00</span></p>
+                    <p><strong>Последнее обновление:</strong> <span id="lastUpdate">--:--:--</span></p>
                 </div>
             </div>
         </div>
@@ -890,17 +735,90 @@
     <!-- Контейнер для уведомлений -->
     <div id="toast-container"></div>
 
-    <!-- Модальное окно подтверждения -->
-    <div id="confirmation-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h3 id="confirmation-message">Вы уверены?</h3>
-            <div class="modal-buttons">
-                <button id="modal-cancel" class="modal-button modal-button-cancel">Отмена</button>
-                <button id="modal-confirm" class="modal-button modal-button-confirm">Подтвердить</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="js/app.js" defer></script>
+    <script>
+        // Простой JS без внешних зависимостей
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("🚀 Farm Monitor Pro запущен");
+            
+            // Инициализация времени
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            // Обработка табов
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const targetPage = this.dataset.page;
+                    showPage(targetPage);
+                    
+                    // Обновление активной вкладки
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Обработка кнопок
+            document.querySelector('.connect-btn')?.addEventListener('click', function() {
+                showToast('Данные обновлены', 'success');
+                updateTime();
+            });
+            
+            document.querySelector('.refresh-btn')?.addEventListener('click', function() {
+                showToast('Графики обновлены', 'info');
+            });
+            
+            showToast('Система инициализирована', 'success');
+        });
+        
+        function showPage(pageId) {
+            // Скрыть все страницы
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Показать выбранную страницу
+            const targetPage = document.getElementById(pageId + 'Page');
+            if (targetPage) {
+                targetPage.classList.add('active');
+            }
+        }
+        
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ru-RU');
+            
+            // Обновляем время в модулях
+            const timeElements = ['time1', 'time2', 'time3', 'lastUpdate'];
+            timeElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = timeString;
+                }
+            });
+            
+            // Обновляем uptime (просто как демо)
+            const uptimeElement = document.getElementById('uptime');
+            if (uptimeElement) {
+                const uptime = Math.floor(Date.now() / 1000) % 86400; // секунды в дне
+                const hours = Math.floor(uptime / 3600);
+                const minutes = Math.floor((uptime % 3600) / 60);
+                const seconds = uptime % 60;
+                uptimeElement.textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, duration);
+        }
+    </script>
 </body>
 </html>
