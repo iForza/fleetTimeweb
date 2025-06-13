@@ -74,6 +74,9 @@ app.use((req, res, next) => {
     next();
 });
 
+// Настройка trust proxy для работы за Nginx
+app.set('trust proxy', 1);
+
 // Применяем rate limiting
 app.use(limiter);
 app.use('/api/', apiLimiter);
